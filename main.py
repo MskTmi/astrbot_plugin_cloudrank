@@ -30,7 +30,7 @@ import sys
 import importlib
 from . import constant as constant_module
 
-@register(PLUGIN_NAME, PLUGIN_AUTHOR, PLUGIN_DESC, PLUGIN_VERSION, PLUGIN_REPO)
+@register("CloudRank", "GEMILUXVII", "词云与排名插件 (CloudRank) 是一个文本可视化工具，能将聊天记录关键词以词云形式展现，并显示用户活跃度排行榜，支持定时或手动生成。", "1.1.1", "https://github.com/GEMILUXVII/astrbot_plugin_cloudrank")
 class WordCloudPlugin(Star):
     """AstrBot 词云生成插件"""
     
@@ -125,6 +125,28 @@ class WordCloudPlugin(Star):
         # 立即执行初始化
         asyncio.create_task(self.initialize())
     
+    def _get_astrbot_sendable_session_id(self, internal_db_session_id: str) -> str:
+        """将插件内部数据库使用的 session_id 转换为 AstrBot 发送消息时可接受的格式"""
+        if not internal_db_session_id:
+            logger.error("尝试转换空的 internal_db_session_id")
+            return ""
+        
+        # 检查是否已经是 AstrBot 的标准格式 (包含':')
+        if ":" in internal_db_session_id:
+            # 可能是私聊ID (e.g., "qq:private:12345") 或其他已正确格式化的ID
+            return internal_db_session_id
+        
+        # 尝试解析 "platform_group_groupid" 格式, e.g., "aiocqhttp_group_142443871"
+        parts = internal_db_session_id.split('_group_', 1)
+        if len(parts) == 2:
+            platform_name = parts[0]
+            group_id_val = parts[1]
+            if platform_name and group_id_val:
+                return f"{platform_name}:GroupMessage:0_{group_id_val}"
+        
+        logger.warning(f"无法将内部 session ID '{internal_db_session_id}' 转换为 AstrBot 发送格式。将按原样使用。")
+        return internal_db_session_id
+
     def _ensure_resource_files(self, data_dir: Path) -> None:
         """
         确保数据目录中存在必要的资源文件，如字体和停用词文件
@@ -220,9 +242,9 @@ class WordCloudPlugin(Star):
                     session_info.append(f"会话 {session_id}: {msg_count}条消息")
                 
                 if session_info:
-                    logger.info(f"已有历史消息统计: {', '.join(session_info)}")
+                    logger.debug(f"已有历史消息统计: {', '.join(session_info)}")
                 else:
-                    logger.info("暂无历史消息记录")
+                    logger.debug("暂无历史消息记录")
             except Exception as e:
                 logger.error(f"获取历史消息统计失败: {e}")
             
@@ -526,67 +548,68 @@ class WordCloudPlugin(Star):
     
     @filter.command(CMD_GENERATE)
     async def generate_wordcloud_command(self, event: AstrMessageEvent, days: int = None):
-        """
-        生成当前会话的词云图片
-        
-        参数:
-            days: 统计最近几天的消息，默认为配置值或7天
-        """
+        """生成指定天数内当前会话的词云图"""
         try:
-            # 检查群聊限制
-            if event.get_group_id():
-                group_id = event.get_group_id()
-                if not is_group_enabled(group_id, self.enabled_groups):
-                    yield event.plain_result(f"该群({group_id})未启用词云功能，无法生成词云。请联系管理员开启。")
-                    return
-        except Exception as e:
-            logger.error(f"检查群聊限制失败: {e}")
-            # 失败时继续执行，不阻止生成
-        
-        if days is None:
-            days = self.config.get("history_days", 7)
-        
-        try:
-            # 检查词云生成器是否初始化成功
-            if self.wordcloud_generator is None:
-                yield event.plain_result("词云生成器未初始化成功，正在尝试重新初始化...")
-                try:
-                    self._init_wordcloud_generator()
-                    if self.wordcloud_generator is None:
-                        yield event.plain_result("无法初始化词云生成器，请联系管理员检查日志。")
-                        return
-                except Exception as e:
-                    yield event.plain_result(f"初始化词云生成器失败: {e}")
-                    return
+            actual_days = days if days is not None else self.config.get("history_days", 7)
+            if actual_days <= 0:
+                yield event.plain_result("天数必须大于0")
+                return
+
+            # target_session_id = event.unified_msg_origin # 旧的获取方式
+            target_session_id_for_query: str
+            group_id_val = event.get_group_id()
+            platform_name = event.get_platform_name()
+            if not platform_name: # 兜底
+                platform_name = "unknown_platform"
+
+            if group_id_val:  # 命令来自群聊
+                target_session_id_for_query = f"{platform_name}_group_{group_id_val}"
+            else:  # 命令来自私聊
+                target_session_id_for_query = event.unified_msg_origin
             
-            # 提示开始生成
-            yield event.plain_result(f"正在为您生成最近{days}天的聊天词云，请稍候...")
+            if self.debug_mode:
+                logger.info(f"WordCloud生成请求: 会话ID={target_session_id_for_query}, 天数={actual_days}")
+
+            # 检查群聊是否启用
+            if group_id_val and not is_group_enabled(group_id_val, self.enabled_groups):
+                yield event.plain_result(f"群聊 {group_id_val} 未启用词云功能。")
+                return
+
+            max_messages_for_generation = 5000 # 增加单次生成处理的消息上限
             
-            # 获取会话ID
-            session_id = event.unified_msg_origin
-            group_id = event.get_group_id()
+            texts = self.history_manager.get_message_texts(
+                session_id=target_session_id_for_query, 
+                days=actual_days, 
+                limit=max_messages_for_generation
+            )
+            # 获取真实的消息总数
+            actual_total_messages = self.history_manager.get_message_count_for_days(
+                session_id=target_session_id_for_query, 
+                days=actual_days
+            )
             
-            # 获取历史消息
-            message_texts = self.history_manager.get_message_texts(session_id, days)
-            
-            if not message_texts:
-                yield event.plain_result(f"找不到最近{days}天的聊天记录，无法生成词云。请尝试使用 '/wc test' 命令生成测试词云。")
+            if not texts:
+                # 即便没有文本（可能都是图片等），也报告一下总消息数
+                if actual_total_messages > 0:
+                    yield event.plain_result(f"最近{actual_days}天内有 {actual_total_messages} 条消息，但没有足够的可用于生成词云的文本内容。")
+                else:
+                    yield event.plain_result(f"最近{actual_days}天内没有消息。")
                 return
             
             # 处理消息文本并生成词云
-            word_counts = self.wordcloud_generator.process_texts(message_texts)
+            word_counts = self.wordcloud_generator.process_texts(texts)
             
             # 设置标题
-            title = f"{'群聊' if group_id else '私聊'}词云 - 最近{days}天"
+            title = f"{'群聊' if group_id_val else '私聊'}词云 - 最近{actual_days}天"
             
             # 生成词云图片
             image_path, path_obj = self.wordcloud_generator.generate_wordcloud(
-                word_counts, session_id, title=title
+                word_counts, target_session_id_for_query, title=title
             )
             
             # 发送结果
             yield event.chain_result([
-                Comp.Plain(f"词云生成成功，共统计了{len(message_texts)}条消息:"),
+                Comp.Plain(f"词云生成成功，共统计了{actual_total_messages}条消息:"),
                 Comp.Image.fromFileSystem(image_path)
             ])
             
@@ -712,53 +735,110 @@ class WordCloudPlugin(Star):
     
     @wordcloud_group.command("today")
     async def today_command(self, event: AstrMessageEvent):
-        """生成今天的聊天词云"""
+        """生成当前会话今天的词云图"""
         try:
-            # 检查群聊限制
-            if event.get_group_id():
-                group_id = event.get_group_id()
-                if not is_group_enabled(group_id, self.enabled_groups):
-                    yield event.plain_result(f"该群({group_id})未启用词云功能，无法生成词云。请联系管理员开启。")
-                    return
-        except Exception as e:
-            logger.error(f"检查群聊限制失败: {e}")
-            # 失败时继续执行，不阻止生成
-        
-        try:
-            # 提示开始生成
-            yield event.plain_result("正在生成今天的聊天词云，请稍候...")
+            # target_session_id = event.unified_msg_origin # 旧的获取方式
+            target_session_id_for_query: str
+            group_id_val = event.get_group_id()
+            platform_name = event.get_platform_name()
+            if not platform_name: # 兜底
+                platform_name = "unknown_platform"
+
+            if group_id_val:  # 命令来自群聊
+                target_session_id_for_query = f"{platform_name}_group_{group_id_val}"
+            else:  # 命令来自私聊
+                target_session_id_for_query = event.unified_msg_origin
+
+            if self.debug_mode:
+                logger.info(f"今日词云生成请求: 会话ID={target_session_id_for_query}")
+
+            # 检查群聊是否启用
+            if group_id_val and not is_group_enabled(group_id_val, self.enabled_groups):
+                yield event.plain_result(f"群聊 {group_id_val} 未启用词云功能。")
+                return
+                
+            # 增加单次生成处理的消息上限
+            max_messages_for_generation = 5000 
+
+            texts = self.history_manager.get_todays_message_texts(
+                session_id=target_session_id_for_query, 
+                limit=max_messages_for_generation
+            )
+            # 获取今天的真实消息总数
+            actual_total_messages_today = self.history_manager.get_message_count_today(target_session_id_for_query)
             
-            # 获取会话ID
-            session_id = event.unified_msg_origin
-            group_id = event.get_group_id()
-            
-            # 获取今天的消息
-            message_texts = self.history_manager.get_todays_message_texts(session_id)
-            
-            if not message_texts:
-                yield event.plain_result("今天还没有聊天记录，无法生成词云。")
+            if not texts:
+                if actual_total_messages_today > 0:
+                    yield event.plain_result(f"今天有 {actual_total_messages_today} 条消息，但没有足够的可用于生成词云的文本内容。")
+                else:
+                    yield event.plain_result("今天没有消息。")
                 return
             
             # 处理消息文本并生成词云
-            word_counts = self.wordcloud_generator.process_texts(message_texts)
+            word_counts = self.wordcloud_generator.process_texts(texts)
             
             # 获取今天的日期
             date_str = format_date()
             
             # 设置标题
-            title = f"{'群聊' if group_id else '私聊'}词云 - {date_str}"
+            title = f"{'群聊' if group_id_val else '私聊'}词云 - {date_str}"
             
             # 生成词云图片
             image_path, path_obj = self.wordcloud_generator.generate_wordcloud(
-                word_counts, session_id, title=title
+                word_counts, target_session_id_for_query, title=title
             )
             
             # 发送结果
             yield event.chain_result([
-                Comp.Plain(f"今日词云生成成功，共统计了{len(message_texts)}条消息:"),
+                Comp.Plain(f"今日词云生成成功，共统计了{actual_total_messages_today}条消息:"),
                 Comp.Image.fromFileSystem(image_path)
             ])
             
+            # 如果配置中启用了用户排行榜功能，则生成并发送排行榜
+            if self.config.get("show_user_ranking", True):
+                try:
+                    # 获取用户总数 (get_total_users_today 已经是准确的数据库查询)
+                    total_users = self.history_manager.get_total_users_today(target_session_id_for_query)
+                    
+                    # 获取活跃用户排名 (get_active_users 已经是准确的数据库查询)
+                    ranking_limit = self.config.get("ranking_user_count", 5)
+                    active_users = self.history_manager.get_active_users(target_session_id_for_query, days=1, limit=ranking_limit)
+                    
+                    if active_users and len(active_users) > 0:
+                        # 获取排行榜奖牌
+                        medals_str = self.config.get("ranking_medals", "🥇,🥈,🥉,🏅,🏅")
+                        medals = medals_str.split(",")
+                        if len(medals) < ranking_limit:
+                            # 如果配置的奖牌不够，用最后一个填充
+                            medals.extend([medals[-1]] * (ranking_limit - len(medals)))
+                        
+                        # 生成排行榜消息
+                        ranking_message = [
+                            f"📊 本群 {total_users} 位朋友共产生 {actual_total_messages_today} 条发言",
+                            f"👀 看下有没有你感兴趣的关键词?",
+                            f"\n活跃用户排行榜:"
+                        ]
+                        
+                        # 添加前N名用户
+                        for i, (user_id, user_name, count) in enumerate(active_users):
+                            medal = medals[i] if i < len(medals) else "🏅"
+                            ranking_message.append(f"{medal} {user_name} 贡献: {count}")
+                        
+                        # 添加感谢信息
+                        ranking_message.append("\n🎉 感谢这些朋友今天的分享! 🎉")
+                        
+                        # 发送排行榜
+                        sendable_ranking_session_id = self._get_astrbot_sendable_session_id(target_session_id_for_query)
+                        await self.scheduler.send_to_session(
+                            sendable_ranking_session_id,
+                            "\n".join(ranking_message)
+                        )
+                except Exception as ranking_error:
+                    logger.error(f"为会话 {target_session_id_for_query} (群 {group_id_val}) 生成用户排行榜失败: {ranking_error}")
+                    if self.debug_mode:
+                        import traceback
+                        logger.debug(f"排行榜错误详情: {traceback.format_exc()}")
+
         except Exception as e:
             logger.error(f"生成今日词云失败: {e}")
             import traceback
@@ -902,10 +982,14 @@ class WordCloudPlugin(Star):
                         logger.info(f"群 {group_id} 未启用词云功能，跳过自动生成")
                         continue
                     
-                    # 获取历史消息
-                    message_texts = self.history_manager.get_message_texts(session_id, days)
+                    # 获取历史消息 (用于生成词云，仍受limit限制)
+                    message_texts = self.history_manager.get_message_texts(session_id, days, limit=5000) # 使用与手动命令一致的limit
                     
-                    if not message_texts or len(message_texts) < 20:  # 至少要有20条消息才生成
+                    # 获取真实的消息总数 (不受limit限制)
+                    actual_total_messages = self.history_manager.get_message_count_for_days(session_id, days)
+                    
+                    if not message_texts or len(message_texts) < self.config.get("min_messages_for_auto_wordcloud", 20): # 至少要有N条消息才生成
+                        logger.info(f"会话 {session_id} 文本消息不足 ({len(message_texts)}条) 或总消息不足 ({actual_total_messages}条)，跳过自动生成")
                         continue
                     
                     # 处理消息文本并生成词云
@@ -918,9 +1002,10 @@ class WordCloudPlugin(Star):
                     )
                     
                     # 发送结果
+                    sendable_session_id = self._get_astrbot_sendable_session_id(session_id)
                     await self.scheduler.send_to_session(
-                        session_id,
-                        f"[自动词云] 这是最近{days}天的聊天词云，共统计了{len(message_texts)}条消息:",
+                        sendable_session_id,
+                        f"[自动词云] 这是最近{days}天的聊天词云，共统计了{actual_total_messages}条消息:",
                         str(path_obj)
                     )
                     
@@ -1095,12 +1180,62 @@ class WordCloudPlugin(Star):
                         
                     message_to_send = f"{title}\n今天共有{message_count}条消息。"
                     if self.debug_mode: logger.debug(f"Session {session_id} (Group {group_id}): Calling scheduler.send_to_session [BEFORE AWAIT] for target {session_id}")
+                    sendable_session_id = self._get_astrbot_sendable_session_id(session_id)
                     send_success = await self.scheduler.send_to_session(
-                        session_id, 
+                        sendable_session_id, 
                         message_to_send,
                         str(path_obj) 
                     )
                     if self.debug_mode: logger.debug(f"Session {session_id} (Group {group_id}): scheduler.send_to_session [AFTER AWAIT]. Success: {send_success}")
+
+                    # 如果词云发送成功并且配置中启用了用户排行榜功能，则生成并发送排行榜
+                    if send_success and self.config.get("show_user_ranking", True):
+                        try:
+                            if self.debug_mode: logger.debug(f"Session {session_id} (Group {group_id}): Generating user ranking")
+                            
+                            # 获取用户总数
+                            total_users = await asyncio.to_thread(self.history_manager.get_total_users_today, session_id)
+                            
+                            # 获取活跃用户排名
+                            ranking_limit = self.config.get("ranking_user_count", 5)
+                            active_users = await asyncio.to_thread(self.history_manager.get_active_users, session_id, days=1, limit=ranking_limit)
+                            
+                            if active_users and len(active_users) > 0:
+                                # 获取排行榜奖牌
+                                medals_str = self.config.get("ranking_medals", "🥇,🥈,🥉,🏅,🏅")
+                                medals = medals_str.split(",")
+                                if len(medals) < ranking_limit:
+                                    # 如果配置的奖牌不够，用最后一个填充
+                                    medals.extend([medals[-1]] * (ranking_limit - len(medals)))
+                                
+                                # 生成排行榜消息
+                                ranking_message = [
+                                    f"📊 本群 {total_users} 位朋友共产生 {message_count} 条发言",
+                                    f"👀 看下有没有你感兴趣的关键词?",
+                                    f"\n活跃用户排行榜:"
+                                ]
+                                
+                                # 添加前N名用户
+                                for i, (user_id, user_name, count) in enumerate(active_users):
+                                    medal = medals[i] if i < len(medals) else "🏅"
+                                    ranking_message.append(f"{medal} {user_name} 贡献: {count}")
+                                
+                                # 添加感谢信息
+                                ranking_message.append("\n🎉 感谢这些朋友今天的分享! 🎉")
+                                
+                                # 发送排行榜
+                                if self.debug_mode: logger.debug(f"Session {session_id} (Group {group_id}): Sending user ranking")
+                                # session_id for sending ranking is the same sendable_session_id used for word cloud image
+                                await self.scheduler.send_to_session(
+                                    sendable_session_id,
+                                    "\n".join(ranking_message)
+                                )
+                                if self.debug_mode: logger.debug(f"Session {session_id} (Group {group_id}): User ranking sent successfully")
+                        except Exception as ranking_error:
+                            logger.error(f"为会话 {session_id} (群 {group_id}) 生成用户排行榜失败: {ranking_error}")
+                            if self.debug_mode:
+                                import traceback
+                                logger.debug(f"排行榜错误详情: {traceback.format_exc()}")
 
                     if send_success:
                         if self.debug_mode: logger.debug(f"Successfully sent word cloud to group {group_id} (Session: {session_id})")

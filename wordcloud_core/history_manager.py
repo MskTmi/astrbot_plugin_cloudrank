@@ -131,13 +131,24 @@ class HistoryManager:
             是否保存成功
         """
         try:
-            session_id = event.unified_msg_origin
+            # session_id = event.unified_msg_origin # 旧的获取方式
             sender_id = event.get_sender_id()
             sender_name = event.get_sender_name()
             message = event.message_str if hasattr(event, 'message_str') else None
             timestamp = get_current_timestamp()
-            is_group = bool(event.get_group_id())
             
+            group_id_val = event.get_group_id()
+            is_group = bool(group_id_val)
+            
+            session_id_to_save: str
+            if group_id_val:  # 是群聊消息
+                platform_name = event.get_platform_name()
+                if not platform_name: # 做个兜底，万一平台名获取不到
+                    platform_name = "unknown_platform" 
+                session_id_to_save = f"{platform_name}_group_{group_id_val}"
+            else:  # 非群聊消息（例如私聊）
+                session_id_to_save = event.unified_msg_origin
+
             # 增强空消息检测逻辑
             if message is None:
                 # 尝试从其他来源获取消息内容
@@ -162,7 +173,7 @@ class HistoryManager:
                     logger.debug(f"尝试提取消息内容失败: {e}")
                 
                 if not message:
-                    logger.debug(f"跳过None消息: 会话ID={session_id}, 发送者={sender_name}")
+                    logger.debug(f"跳过None消息: 会话ID={session_id_to_save}, 发送者={sender_name}")
                     return False
             
             # 确保message是字符串
@@ -178,11 +189,11 @@ class HistoryManager:
             
             # 过滤空消息
             if not message:
-                logger.debug(f"跳过空消息: 会话ID={session_id}, 发送者={sender_name}")
+                logger.debug(f"跳过空消息: 会话ID={session_id_to_save}, 发送者={sender_name}")
                 return False
             
             # 日志详细记录收到的消息
-            logger.debug(f"准备保存消息: 会话ID={session_id}, 发送者={sender_name}, 内容前30字符: {message[:30]}...")
+            logger.debug(f"准备保存消息: 会话ID={session_id_to_save}, 发送者={sender_name}, 内容前30字符: {message[:30]}...")
             
             # 插入数据
             insert_sql = """
@@ -190,7 +201,7 @@ class HistoryManager:
             (session_id, sender_id, sender_name, message, timestamp, is_group)
             VALUES (?, ?, ?, ?, ?, ?)
             """
-            params = (session_id, sender_id, sender_name, message, timestamp, is_group)
+            params = (session_id_to_save, sender_id, sender_name, message, timestamp, is_group)
             
             # 使用_get_db_cursor获取游标并执行
             try:
@@ -198,7 +209,7 @@ class HistoryManager:
                 cursor.execute(insert_sql, params)
                 cursor.connection.commit()
                 cursor.close()
-                logger.debug(f"消息保存成功 - 会话ID: {session_id}, 时间戳: {timestamp}")
+                logger.debug(f"消息保存成功 - 会话ID: {session_id_to_save}, 时间戳: {timestamp}")
                 return True
             except Exception as db_error:
                 logger.error(f"数据库操作失败: {db_error}")
@@ -256,9 +267,8 @@ class HistoryManager:
                         'timestamp': row[4],
                         'is_group': bool(row[5])
                     })
-                
-                cursor.close()
-                logger.info(f"获取到{len(messages)}条历史消息(会话ID: {session_id}, 天数: {days})")
+
+                logger.debug(f"获取到{len(messages)}条历史消息(会话ID: {session_id}, 天数: {days})")
                 return messages
             except Exception as db_error:
                 logger.error(f"获取历史消息数据库操作失败: {db_error}")
@@ -348,7 +358,7 @@ class HistoryManager:
                 messages = [row[0] for row in cursor.fetchall()]
                 
                 cursor.close()
-                logger.info(f"获取到{len(messages)}条历史消息(会话ID: {session_id}, 天数: {days})")
+                logger.debug(f"获取到{len(messages)}条历史消息(会话ID: {session_id}, 天数: {days})")
                 
                 # 检查消息长度
                 total_chars = sum(len(msg) for msg in messages)
@@ -477,60 +487,167 @@ class HistoryManager:
     
     def get_message_count_today(self, session_id: str) -> int:
         """
-        获取指定会话今天的消息数量
+        获取今天的消息数量
         
         Args:
             session_id: 会话ID
-            
+        
         Returns:
-            今天的消息数量
+            消息数量
         """
         try:
             # 获取今天的开始和结束时间戳
             start_timestamp, end_timestamp = get_day_start_end_timestamps()
-            logger.debug(f"获取今日消息计数 - 会话ID: {session_id}, 时间范围: {start_timestamp} 到 {end_timestamp}")
             
-            # 查询数据
+            # 查询今天的消息数量
             query_sql = """
-            SELECT COUNT(*)
+            SELECT COUNT(*) as count
             FROM wordcloud_message_history
             WHERE session_id = ? AND timestamp >= ? AND timestamp <= ?
             """
             
             # 使用_get_db_cursor获取游标并执行
-            try:
-                cursor = self._get_db_cursor()
-                cursor.execute(query_sql, (session_id, start_timestamp, end_timestamp))
-                
-                # 获取结果
-                count = cursor.fetchone()[0]
-                cursor.close()
-                logger.debug(f"今日消息计数结果 - 会话ID: {session_id}, 消息数量: {count}")
-                return count
-            except Exception as db_error:
-                logger.error(f"数据库操作失败: {db_error}")
-                
-                # 尝试重新连接数据库并重试一次
-                try:
-                    logger.debug("尝试重新连接数据库并重试查询消息计数...")
-                    if hasattr(self.db, '_get_conn') and callable(getattr(self.db, '_get_conn')):
-                        conn = self.db._get_conn(self.db.db_path)
-                        cursor = conn.cursor()
-                        cursor.execute(query_sql, (session_id, start_timestamp, end_timestamp))
-                        
-                        # 获取结果
-                        count = cursor.fetchone()[0]
-                        cursor.close()
-                        logger.debug(f"重试成功，今日消息计数结果 - 会话ID: {session_id}, 消息数量: {count}")
-                        return count
-                    else:
-                        logger.error("无法重新连接数据库")
-                        return 0
-                except Exception as retry_error:
-                    logger.error(f"重试数据库操作失败: {retry_error}")
-                    return 0
+            cursor = self._get_db_cursor()
+            cursor.execute(query_sql, (session_id, start_timestamp, end_timestamp))
+            
+            # 获取结果
+            result = cursor.fetchone()
+            cursor.close()
+            
+            if result:
+                return result[0]
+            return 0
         except Exception as e:
-            logger.error(f"获取今日消息计数失败: {e}")
+            logger.error(f"获取今天的消息数量失败: {e}")
+            return 0
+            
+    def get_message_count_for_days(self, session_id: str, days: int) -> int:
+        """
+        获取指定会话在过去N天内的总消息数量。
+        
+        Args:
+            session_id: 会话ID
+            days: 获取最近几天的消息
+            
+        Returns:
+            指定天数内的消息总数量
+        """
+        try:
+            # 计算起始时间戳
+            current_time = get_current_timestamp()
+            start_time = current_time - (days * 24 * 60 * 60)
+            
+            # 查询数据
+            query_sql = """
+            SELECT COUNT(*) as count
+            FROM wordcloud_message_history
+            WHERE session_id = ? AND timestamp >= ?
+            """
+            
+            # 使用_get_db_cursor获取游标并执行
+            cursor = self._get_db_cursor()
+            cursor.execute(query_sql, (session_id, start_time))
+            
+            # 获取结果
+            result = cursor.fetchone()
+            cursor.close()
+            
+            if result:
+                logger.debug(f"获取到 {days} 天内消息总数: {result[0]} (会话ID: {session_id})")
+                return result[0]
+            return 0
+        except Exception as e:
+            logger.error(f"获取 {days} 天内消息总数失败: {e}, session_id={session_id}")
+            return 0
+    
+    def get_active_users(self, session_id: str, days: int = 1, limit: int = 10) -> List[Tuple[str, str, int]]:
+        """
+        获取指定会话中最活跃的用户（按发言数量排序）
+        
+        Args:
+            session_id: 会话ID
+            days: 统计最近几天的数据，默认为1天（今天）
+            limit: 返回的用户数量限制
+            
+        Returns:
+            用户活跃度排名列表，格式为 [(user_id, user_name, message_count), ...]
+        """
+        try:
+            # 计算时间范围
+            if days == 1:
+                # 使用当天时间范围
+                start_timestamp, end_timestamp = get_day_start_end_timestamps()
+            else:
+                # 计算过去days天的时间范围
+                current_time = get_current_timestamp()
+                start_timestamp = current_time - (days * 24 * 60 * 60)
+                end_timestamp = current_time
+                
+            # 查询活跃用户数据
+            query_sql = """
+            SELECT sender_id, sender_name, COUNT(*) as message_count
+            FROM wordcloud_message_history
+            WHERE session_id = ? AND timestamp >= ? AND timestamp <= ?
+            GROUP BY sender_id
+            ORDER BY message_count DESC
+            LIMIT ?
+            """
+            
+            # 使用_get_db_cursor获取游标并执行
+            cursor = self._get_db_cursor()
+            cursor.execute(query_sql, (session_id, start_timestamp, end_timestamp, limit))
+            
+            # 获取结果
+            results = cursor.fetchall()
+            cursor.close()
+            
+            # 转换为所需格式
+            user_list = []
+            for row in results:
+                user_id = row[0]
+                user_name = row[1] or user_id  # 如果没有名称，使用ID
+                message_count = row[2]
+                user_list.append((user_id, user_name, message_count))
+                
+            return user_list
+        except Exception as e:
+            logger.error(f"获取活跃用户失败: {e}, session_id={session_id}, days={days}")
+            return []
+            
+    def get_total_users_today(self, session_id: str) -> int:
+        """
+        获取今天在指定会话中发言的总用户数
+        
+        Args:
+            session_id: 会话ID
+            
+        Returns:
+            用户数量
+        """
+        try:
+            # 获取今天的开始和结束时间戳
+            start_timestamp, end_timestamp = get_day_start_end_timestamps()
+            
+            # 查询今天发言的不同用户数量
+            query_sql = """
+            SELECT COUNT(DISTINCT sender_id) as user_count
+            FROM wordcloud_message_history
+            WHERE session_id = ? AND timestamp >= ? AND timestamp <= ?
+            """
+            
+            # 使用_get_db_cursor获取游标并执行
+            cursor = self._get_db_cursor()
+            cursor.execute(query_sql, (session_id, start_timestamp, end_timestamp))
+            
+            # 获取结果
+            result = cursor.fetchone()
+            cursor.close()
+            
+            if result:
+                return result[0]
+            return 0
+        except Exception as e:
+            logger.error(f"获取今天的用户数量失败: {e}")
             return 0
     
     def extract_group_id_from_session(self, session_id: str) -> Optional[str]:
