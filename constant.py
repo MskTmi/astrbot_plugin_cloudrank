@@ -1,6 +1,7 @@
 """
 CloudRank插件常量定义
 """
+
 import os
 from pathlib import Path
 
@@ -8,7 +9,7 @@ from pathlib import Path
 PLUGIN_NAME = "cloudrank"
 PLUGIN_AUTHOR = "GEMILUXVII"
 PLUGIN_DESC = "词云与排名插件 (CloudRank) 是一个文本可视化工具，能将聊天记录关键词以词云形式展现，并显示用户活跃度排行榜，支持定时或手动生成。"
-PLUGIN_VERSION = "1.1.1"
+PLUGIN_VERSION = "1.1.2"
 PLUGIN_REPO = "https://github.com/GEMILUXVII/astrbot_plugin_cloudrank"
 
 # 路径常量
@@ -35,10 +36,63 @@ CMD_HELP = "help"
 
 # 默认停用词列表
 DEFAULT_STOPWORDS = [
-    "的", "了", "在", "是", "我", "有", "和", "就", "不", "人", "都", 
-    "一", "一个", "上", "也", "很", "到", "说", "要", "去", "你", "会", 
-    "着", "没有", "看", "好", "自己", "这", "the", "and", "to", "of", 
-    "a", "is", "in", "it", "that", "for", "on", "with", "as", "be", 
-    "at", "this", "have", "from", "by", "was", "are", "or", "an", 
-    "I", "but", "not", "you", "he", "they", "she", "we"
-] 
+    "的",
+    "了",
+    "在",
+    "是",
+    "我",
+    "有",
+    "和",
+    "就",
+    "不",
+    "人",
+    "都",
+    "一",
+    "一个",
+    "上",
+    "也",
+    "很",
+    "到",
+    "说",
+    "要",
+    "去",
+    "你",
+    "会",
+    "着",
+    "没有",
+    "看",
+    "好",
+    "自己",
+    "这",
+    "the",
+    "and",
+    "to",
+    "of",
+    "a",
+    "is",
+    "in",
+    "it",
+    "that",
+    "for",
+    "on",
+    "with",
+    "as",
+    "be",
+    "at",
+    "this",
+    "have",
+    "from",
+    "by",
+    "was",
+    "are",
+    "or",
+    "an",
+    "I",
+    "but",
+    "not",
+    "you",
+    "he",
+    "they",
+    "she",
+    "we",
+]
