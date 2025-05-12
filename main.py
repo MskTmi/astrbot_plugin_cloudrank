@@ -3,28 +3,21 @@ AstrBot 词云生成插件
 """
 
 import os
-import sys
 import time
 import datetime
 import traceback
 import asyncio
-from typing import List, Dict, Any, Optional, Tuple, Set
 from pathlib import Path
-import importlib
 
 from astrbot.api import logger
 from astrbot.api import AstrBotConfig
 from astrbot.api.star import Star, Context, register, StarTools
-from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult, MessageChain
+from astrbot.api.event import filter, AstrMessageEvent, MessageChain
 from astrbot.api.event.filter import EventMessageType
 import astrbot.api.message_components as Comp
 
 from .constant import (
     PLUGIN_NAME,
-    PLUGIN_AUTHOR,
-    PLUGIN_DESC,
-    PLUGIN_VERSION,
-    PLUGIN_REPO,
     CMD_GENERATE,
     CMD_GROUP,
     CMD_CONFIG,
@@ -32,9 +25,6 @@ from .constant import (
     NATURAL_KEYWORDS,
 )
 from .utils import (
-    load_stop_words,
-    get_image_path,
-    get_daily_image_path,
     format_date,
     time_str_to_cron,
     parse_group_list,
@@ -47,8 +37,6 @@ from .wordcloud_core.history_manager import HistoryManager
 from .wordcloud_core.scheduler import TaskScheduler
 
 # 导入常量模块以便修改DATA_DIR
-import sys
-import importlib
 from . import constant as constant_module
 
 
@@ -56,7 +44,7 @@ from . import constant as constant_module
     "CloudRank",
     "GEMILUXVII",
     "词云与排名插件 (CloudRank) 是一个文本可视化工具，能将聊天记录关键词以词云形式展现，并显示用户活跃度排行榜，支持定时或手动生成。",
-    "1.3.2",
+    "1.3.4",
     "https://github.com/GEMILUXVII/astrbot_plugin_cloudrank",
 )
 class WordCloudPlugin(Star):
@@ -73,6 +61,23 @@ class WordCloudPlugin(Star):
         if self.debug_mode:
             logger.warning("WordCloud插件调试模式已启用，将输出详细日志。")
         # -----------------------
+
+        # --- 读取时区配置 ---
+        self.timezone_str = self.config.get("timezone", "Asia/Shanghai")
+        try:
+            import pytz
+
+            self.timezone = pytz.timezone(self.timezone_str)
+            logger.info(f"WordCloud插件已加载时区设置: {self.timezone_str}")
+        except Exception as e:
+            logger.error(
+                f"加载时区 '{self.timezone_str}' 失败: {e}，将使用默认UTC时区。"
+            )
+            import pytz
+
+            self.timezone = pytz.utc
+            self.timezone_str = "UTC"
+        # --------------------
 
         # --- 获取主事件循环 ---
         try:
@@ -123,7 +128,10 @@ class WordCloudPlugin(Star):
 
         # --- 将主循环和调试模式传递给 Scheduler ---
         self.scheduler = TaskScheduler(
-            context, main_loop=self.main_loop, debug_mode=self.debug_mode
+            context,
+            main_loop=self.main_loop,
+            debug_mode=self.debug_mode,
+            timezone=self.timezone,
         )
         # -----------------------------------------
         logger.info("任务调度器初始化完成")
@@ -189,9 +197,13 @@ class WordCloudPlugin(Star):
             fonts_dir = resources_dir / "fonts"
             fonts_dir.mkdir(exist_ok=True)
 
-            # 创建图片目录
-            images_dir = data_dir / "images"
-            images_dir.mkdir(exist_ok=True)
+            # 创建用于存放自定义蒙版图片的目录 (在resources下)
+            custom_masks_dir = resources_dir / "images"
+            custom_masks_dir.mkdir(exist_ok=True)
+
+            # 创建图片目录 (这个是用于存放生成的词云图，在数据目录顶层)
+            output_images_dir = data_dir / "images"
+            output_images_dir.mkdir(exist_ok=True)
 
             # 创建调试目录
             debug_dir = data_dir / "debug"
@@ -297,7 +309,10 @@ class WordCloudPlugin(Star):
         min_word_length = self.config.get("min_word_length", 2)
         background_color = self.config.get("background_color", "white")
         colormap = self.config.get("colormap", "viridis")
-        shape = self.config.get("shape", "circle")
+        shape = self.config.get("shape", "rectangle")  # 默认形状为矩形
+        custom_mask_path_config = self.config.get(
+            "custom_mask_path", ""
+        )  # 读取自定义蒙版路径配置
 
         # 获取字体路径，如果配置中没有，则使用默认值
         font_path = self.config.get("font_path", "")
@@ -355,6 +370,7 @@ class WordCloudPlugin(Star):
             if os.path.exists(stop_words_file)
             else None,
             shape=shape,
+            custom_mask_path=custom_mask_path_config,  # 传递自定义蒙版路径
         )
 
         logger.info("词云生成器初始化完成")
@@ -461,7 +477,7 @@ class WordCloudPlugin(Star):
                             f"已成功添加每日词云生成任务，执行时间: {daily_time}({daily_cron})"
                         )
                     else:
-                        logger.error(f"添加每日词云生成任务失败，返回值为False")
+                        logger.error("添加每日词云生成任务失败，返回值为False")
 
                 except Exception as daily_task_error:
                     logger.error(f"添加每日词云生成任务失败: {daily_task_error}")
@@ -513,11 +529,15 @@ class WordCloudPlugin(Star):
     async def record_message(self, event: AstrMessageEvent):
         """监听所有消息并记录用于后续词云生成"""
         try:
+            # 获取是否计入机器人消息的配置
+            include_bot_msgs = self.config.get("include_bot_messages", False)
+
             # 跳过命令消息
             if event.message_str is not None and event.message_str.startswith("/"):
                 return
-            # 跳过机器人自身消息
-            if event.get_sender_id() == event.get_self_id():
+
+            # 如果不计入机器人消息，则跳过机器人自身消息
+            if not include_bot_msgs and event.get_sender_id() == event.get_self_id():
                 return
 
             # 尝试匹配自然语言关键词
@@ -626,7 +646,7 @@ class WordCloudPlugin(Star):
                         )
                     # 检查消息内容
                     elif not content:
-                        logger.warning(f"保存消息到历史记录失败 - 消息内容为空")
+                        logger.warning("保存消息到历史记录失败 - 消息内容为空")
                     else:
                         logger.warning(
                             f"保存消息到历史记录失败 - 会话ID: {session_id}, 可能是数据库操作失败"
@@ -746,7 +766,7 @@ class WordCloudPlugin(Star):
     async def config_command(self, event: AstrMessageEvent):
         """查看当前词云插件配置"""
         config_info = [
-            f"【词云插件配置】",
+            "【词云插件配置】",
             f"自动生成: {'开启' if self.config.get('auto_generate_enabled', True) else '关闭'}",
             f"自动生成时间: {self.config.get('auto_generate_cron', '0 20 * * *')}",
             f"每日词云: {'开启' if self.config.get('daily_generate_enabled', True) else '关闭'}",
@@ -756,14 +776,14 @@ class WordCloudPlugin(Star):
             f"统计天数: {self.config.get('history_days', 7)}",
             f"背景颜色: {self.config.get('background_color', 'white')}",
             f"配色方案: {self.config.get('colormap', 'viridis')}",
-            f"形状: {self.config.get('shape', 'circle')}",
+            f"形状: {self.config.get('shape', 'rectangle')}",
         ]
 
         # 添加群聊配置信息
         if self.enabled_groups:
             config_info.append(f"启用的群: {', '.join(self.enabled_groups)}")
         else:
-            config_info.append(f"启用的群: 全部（未指定特定群）")
+            config_info.append("启用的群: 全部（未指定特定群）")
 
         yield event.plain_result("\n".join(config_info))
 
@@ -771,23 +791,23 @@ class WordCloudPlugin(Star):
     async def help_command(self, event: AstrMessageEvent):
         """查看词云插件帮助"""
         help_text = [
-            f"【词云插件帮助】",
-            f"1. /wordcloud - 生成当前会话的词云",
-            f"2. /wordcloud [天数] - 生成指定天数的词云",
-            f"3. /wc config - 查看当前词云配置",
-            f"4. /wc help - 显示本帮助信息",
-            f"5. /wc test - 生成测试词云（无需历史数据）",
-            f"6. /wc today - 生成今天的词云",
-            f"7. /wc enable [群号] - 为指定群启用词云功能",
-            f"8. /wc disable [群号] - 为指定群禁用词云功能",
-            f"9. /wc clean_config - 清理过时的配置项",
-            f"10. /wc force_daily - 强制执行每日词云生成（管理员）",
-            f"",
-            f"【自然语言关键词】",
-            f"除了上述命令外，您还可以直接使用以下关键词触发相应功能：",
-            f"- 「今日词云」「获取今日词云」等 - 生成今天的词云",
-            f"- 「生成词云」「查看词云」等 - 生成最近7天的词云",
-            f"- 「词云帮助」「词云功能」等 - 显示帮助信息",
+            "【词云插件帮助】",
+            "1. /wordcloud - 生成当前会话的词云",
+            "2. /wordcloud [天数] - 生成指定天数的词云",
+            "3. /wc config - 查看当前词云配置",
+            "4. /wc help - 显示本帮助信息",
+            "5. /wc test - 生成测试词云（无需历史数据）",
+            "6. /wc today - 生成今天的词云",
+            "7. /wc enable [群号] - 为指定群启用词云功能",
+            "8. /wc disable [群号] - 为指定群禁用词云功能",
+            "9. /wc clean_config - 清理过时的配置项",
+            "10. /wc force_daily - 强制执行每日词云生成（管理员）",
+            "",
+            "【自然语言关键词】",
+            "除了上述命令外，您还可以直接使用以下关键词触发相应功能：",
+            "- 「今日词云」「获取今日词云」等 - 生成今天的词云",
+            "- 「生成词云」「查看词云」等 - 生成最近7天的词云",
+            "- 「词云帮助」「词云功能」等 - 显示帮助信息",
         ]
 
         yield event.plain_result("\n".join(help_text))
@@ -988,7 +1008,7 @@ class WordCloudPlugin(Star):
                         logger.info(f"用户排行榜已成功发送到 {sendable_session_id}")
                     else:
                         logger.info(
-                            f"没有活跃用户数据可用于生成排行榜，或活跃用户数为0。跳过排行榜发送。"
+                            "没有活跃用户数据可用于生成排行榜，或活跃用户数为0。跳过排行榜发送。"
                         )
 
                 except Exception as ranking_error:
@@ -1245,7 +1265,7 @@ class WordCloudPlugin(Star):
                 # 锁文件太旧，可能是之前的任务异常退出，删除旧锁文件
                 try:
                     os.remove(task_lock_file)
-                    logger.info(f"发现陈旧的任务锁文件，已删除")
+                    logger.info("发现陈旧的任务锁文件，已删除")
                 except Exception as e:
                     logger.error(f"删除陈旧的任务锁文件失败: {e}")
                     # 如果无法删除，仍跳过本次执行
