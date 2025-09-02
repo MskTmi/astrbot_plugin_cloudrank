@@ -1407,10 +1407,11 @@ class WordCloudPlugin(Star):
                         logger.info(f"成功为群 {group_id} 生成词云: {image_path_wc}")
 
                         # 构建消息
-                        message_chain_wc = [  # Renamed
-                            Comp.Plain(f"【每日词云】{date_str_title}热词统计\n"),
-                            Comp.Image(file=str(path_obj)),
-                        ]
+                        # message_chain_wc = [  # Renamed
+                        #     Comp.Plain("让罐头看看你们今天都说了什么"),
+                        #    # Comp.Plain(f"【每日词云】{date_str_title}热词统计\n"),
+                        #     Comp.Image(file=str(path_obj)),
+                        # ]
 
                         # 发送消息到群
                         sendable_session_id = self._get_astrbot_sendable_session_id(
@@ -1423,10 +1424,19 @@ class WordCloudPlugin(Star):
                             logger.info(
                                 f"Attempting to send message to session_id: {sendable_session_id} (derived from group_id: {group_id})"
                             )
-                            result = await self.context.send_message(
-                                sendable_session_id, MessageChain(message_chain_wc)
+                            # 构建消息
+                            resultTxt = await self.context.send_message(
+                                sendable_session_id, 
+                                MessageChain(
+                                    [Comp.Plain("让罐头看看你们今天都说了什么")]
+                                )
                             )
-                            if result:
+                            # 图片
+                            resultImg = await self.context.send_message(
+                                sendable_session_id, MessageChain([Comp.Image(file=str(path_obj))])
+                            )
+                            
+                            if resultTxt and resultImg:
                                 logger.info(
                                     f"Successfully sent daily wordcloud to session: {sendable_session_id}"
                                 )
@@ -1485,14 +1495,14 @@ class WordCloudPlugin(Star):
 
                                             ranking_text_lines = []
                                             ranking_text_lines.append(
-                                                f"本群 {total_users} 位朋友共产生 {total_messages_for_date} 条发言"
+                                                f"今天有 {total_users} 位老板说了 {total_messages_for_date} 句话呀"
                                             )  # Style of 图二
                                             ranking_text_lines.append(
-                                                "👀 看下有没有你感兴趣的关键词?"
+                                                "让咱仔细瞧瞧，看看下次去谁那里进货呢 👀"
                                             )  # Style of 图二
                                             ranking_text_lines.append("")  # Blank line
                                             ranking_text_lines.append(
-                                                "活跃用户排行榜:"
+                                                "活跃客户排行榜:"
                                             )  # Style of 图二
 
                                             medals_str = self.config.get(
@@ -1518,7 +1528,7 @@ class WordCloudPlugin(Star):
 
                                             ranking_text_lines.append("")  # Blank line
                                             ranking_text_lines.append(
-                                                "🎉 感谢这些朋友今天的分享! 🎉"
+                                                "🐾 感谢各位老板大驾光临~ "
                                             )  # Style of 图二
 
                                             final_ranking_str = "\n".join(
@@ -1545,7 +1555,7 @@ class WordCloudPlugin(Star):
                                 # --- END: Add user ranking logic ---
                             else:
                                 logger.warning(
-                                    f"Failed to send daily wordcloud to session: {sendable_session_id}. Result: {result}"
+                                    f"Failed to send daily wordcloud to session: {sendable_session_id}. resultTxt: {resultTxt},resultImg: {resultImg}"
                                 )
 
                         except (
