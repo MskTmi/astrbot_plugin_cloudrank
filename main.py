@@ -281,10 +281,11 @@ class WordCloudPlugin(Star):
 
             # 输出状态信息
             try:
-                active_sessions = self.history_manager.get_active_sessions()
+                active_sessions = await self.history_manager.get_active_sessions()
                 session_info = []
                 for session_id in active_sessions:
-                    msg_count = len(self.history_manager.get_message_texts(session_id))
+                    msg_texts = await self.history_manager.get_message_texts(session_id)
+                    msg_count = len(msg_texts)
                     session_info.append(f"会话 {session_id}: {msg_count}条消息")
 
                 if session_info:
@@ -642,7 +643,7 @@ class WordCloudPlugin(Star):
 
             # 保存消息到历史记录
             try:
-                success = self.history_manager.save_message(event)
+                success = await self.history_manager.save_message(event)
                 if success:
                     logger.debug(f"成功保存消息到历史记录 - 会话ID: {session_id}")
                 else:
@@ -723,13 +724,13 @@ class WordCloudPlugin(Star):
 
             max_messages_for_generation = 5000  # 增加单次生成处理的消息上限
 
-            texts = self.history_manager.get_message_texts(
+            texts = await self.history_manager.get_message_texts(
                 session_id=target_session_id_for_query,
                 days=actual_days,
                 limit=max_messages_for_generation,
             )
             # 获取真实的消息总数
-            actual_total_messages = self.history_manager.get_message_count_for_days(
+            actual_total_messages = await self.history_manager.get_message_count_for_days(
                 session_id=target_session_id_for_query, days=actual_days
             )
 
@@ -944,12 +945,12 @@ class WordCloudPlugin(Star):
             # 增加单次生成处理的消息上限
             max_messages_for_generation = 5000
 
-            texts = self.history_manager.get_todays_message_texts(
+            texts = await self.history_manager.get_todays_message_texts(
                 session_id=target_session_id_for_query,
                 limit=max_messages_for_generation,
             )
             # 获取今天的真实消息总数
-            actual_total_messages_today = self.history_manager.get_message_count_today(
+            actual_total_messages_today = await self.history_manager.get_message_count_today(
                 target_session_id_for_query
             )
 
@@ -995,14 +996,14 @@ class WordCloudPlugin(Star):
                     logger.info(
                         f"开始为会话 {target_session_id_for_query} 生成用户排行榜"
                     )
-                    total_users = self.history_manager.get_total_users_today(
+                    total_users = await self.history_manager.get_total_users_today(
                         target_session_id_for_query
                     )
                     logger.info(f"本日总参与用户数: {total_users}")
 
                     ranking_limit = self.config.get("ranking_user_count", 5)
                     logger.info(f"排行榜显示数量上限: {ranking_limit}")
-                    active_users = self.history_manager.get_active_users(
+                    active_users = await self.history_manager.get_active_users(
                         target_session_id_for_query, days=1, limit=ranking_limit
                     )
                     logger.info(
@@ -1116,12 +1117,10 @@ class WordCloudPlugin(Star):
             if not self.enabled_groups:
                 try:
                     # 获取所有活跃群
-                    active_groups = self.history_manager.get_active_group_sessions()
+                    active_groups = await self.history_manager.get_active_group_sessions()
                     for session_id in active_groups:
-                        active_group_id = (
-                            self.history_manager.extract_group_id_from_session(
-                                session_id
-                            )
+                        active_group_id = self.history_manager.extract_group_id_from_session(
+                            session_id
                         )
                         if active_group_id and active_group_id != group_id:
                             self.enabled_groups.add(active_group_id)
@@ -1206,7 +1205,7 @@ class WordCloudPlugin(Star):
             days = self.config.get("history_days", 7)
 
             # 获取活跃会话
-            active_sessions = self.history_manager.get_active_sessions(days)
+            active_sessions = await self.history_manager.get_active_sessions(days)
 
             for session_id in active_sessions:
                 try:
@@ -1219,12 +1218,12 @@ class WordCloudPlugin(Star):
                         continue
 
                     # 获取历史消息 (用于生成词云，仍受limit限制)
-                    message_texts = self.history_manager.get_message_texts(
+                    message_texts = await self.history_manager.get_message_texts(
                         session_id, days, limit=5000
                     )  # 使用与手动命令一致的limit
 
                     # 获取真实的消息总数 (不受limit限制)
-                    actual_total_messages = (
+                    actual_total_messages = await (
                         self.history_manager.get_message_count_for_days(
                             session_id, days
                         )
@@ -1323,7 +1322,7 @@ class WordCloudPlugin(Star):
                 logger.info(f"任务执行日期: {date}")
 
                 # 获取所有活跃的会话
-                active_sessions = self.history_manager.get_active_sessions()
+                active_sessions = await self.history_manager.get_active_sessions()
                 logger.info(f"发现活跃会话数量: {len(active_sessions)}")
 
                 # 遍历所有活跃会话
@@ -1361,7 +1360,7 @@ class WordCloudPlugin(Star):
                         end_timestamp = int(today_end.timestamp())
 
                         # 使用新添加的方法获取指定时间范围内的消息
-                        all_messages = (
+                        all_messages = await (
                             self.history_manager.get_messages_by_timestamp_range(
                                 session_id=session_id,
                                 start_timestamp=start_timestamp,
@@ -1460,13 +1459,13 @@ class WordCloudPlugin(Star):
                                             "ranking_user_count", 5
                                         )
 
-                                        active_users = self.history_manager.get_active_users_for_date_range(
+                                        active_users = await self.history_manager.get_active_users_for_date_range(
                                             session_id,
                                             target_date_start_ts,
                                             target_date_end_ts,
                                             limit=ranking_limit,
                                         )
-                                        total_users = self.history_manager.get_total_users_for_date_range(
+                                        total_users = await self.history_manager.get_total_users_for_date_range(
                                             session_id,
                                             target_date_start_ts,
                                             target_date_end_ts,
@@ -1603,7 +1602,7 @@ class WordCloudPlugin(Star):
             logger.error(f"错误详情: {traceback.format_exc()}")
             yield event.plain_result(f"强制执行每日词云生成任务失败: {str(e)}")
 
-    def terminate(self):
+    async def terminate(self):
         """
         插件终止时的清理操作
         """
@@ -1626,7 +1625,7 @@ class WordCloudPlugin(Star):
             if hasattr(self, "history_manager") and self.history_manager is not None:
                 logger.info("Closing history manager...")
                 try:
-                    self.history_manager.close()
+                    await self.history_manager.close()
                     logger.info("History manager closed successfully")
                 except Exception as e:
                     logger.error(f"Error closing history manager: {e}")

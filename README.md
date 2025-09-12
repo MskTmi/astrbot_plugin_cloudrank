@@ -4,7 +4,7 @@
 
 <br>
 
-<div align="center">  <a href="#-更新日志"> <img src="https://img.shields.io/badge/version-v1.3.9-9644F4?style=for-the-badge" alt="Version"></a>
+<div align="center">  <a href="#-更新日志"> <img src="https://img.shields.io/badge/version-v2.0.0-9644F4?style=for-the-badge" alt="Version"></a>
   <a href="https://github.com/GEMILUXVII/astrbot_plugin_cloudrank/blob/main/LICENSE"> <img src="https://img.shields.io/badge/license-AGPL--3.0-E53935?style=for-the-badge" alt="License"></a>
   <a href="https://www.python.org/downloads/"> <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python Version"></a>
   <a href="https://github.com/AstrBotDevs/AstrBot"> <img src="https://img.shields.io/badge/AstrBot-Compatible-00BFA5?style=for-the-badge&logo=robot&logoColor=white" alt="AstrBot Compatible"></a>
@@ -32,6 +32,8 @@
 
 CloudRank 插件是一款用于 AstrBot 的插件，能够将群聊或私聊中的文本消息进行分析，并生成美观的词云图像。通过词云，用户可以直观地了解一段时间内聊天内容的关键词和热点话题。插件同时提供用户活跃度排名功能，展示群内最活跃的成员。插件支持自动定时生成和手动触发生成，并提供了丰富的配置选项，让您可以定制个性化的词云和排名显示。
 
+插件完全适配 AstrBot v4.0.0 及以上版本，使用现代异步 SQLAlchemy ORM 进行数据库操作，确保了数据访问的高效性和可靠性。所有数据库操作都通过 AstrBot 提供的中心化数据库管理系统进行，无需额外的数据库配置
+
 ## ✨ 功能特性
 
 - 🕒 **定时自动生成**：支持 Cron 表达式配置，定时为指定群聊或所有启用的会话生成词云
@@ -56,6 +58,17 @@ CloudRank 插件是一款用于 AstrBot 的插件，能够将群聊或私聊中�
 - 🐛 **调试模式**：可选的详细日志输出，方便排查问题
 
 ## 📱 支持平台
+
+### 系统要求
+
+- **AstrBot 版本**：v4.0.0 及以上
+  - 使用新版异步 ORM 数据库系统
+  - 无需额外的数据库配置
+- **Python 版本**：3.10+
+  - 支持异步特性
+  - 兼容新版 SQLAlchemy
+
+### 平台支持
 
 CloudRank 插件基于 AstrBot 平台开发：
 
@@ -454,6 +467,28 @@ AstrBot/data/plugin_data/cloudrank/
   - **解决**: 确保消息格式完全匹配 `constant.py` 中定义的关键词，包括空格和标点符号，确保消息不以 `/` 开头，否则会被视为命令而非普通消息
 
 ## 🔄 更新日志
+
+#### **v2.0.0** (2025-09-12)
+
+**重大更新**:
+
+- 完全适配 AstrBot v4.0.0 数据库系统
+  - 迁移到现代异步 SQLAlchemy ORM
+  - 移除所有直接 SQL 操作
+  - 使用 AstrBot 提供的中央数据库服务
+  - 提升数据操作的性能和可靠性
+
+**优化改进**:
+
+- 增强了指令过滤机制
+  - 优化词云生成时的消息过滤
+  - 更准确地排除指令相关文字
+  - 改进自然语言命令的处理逻辑
+
+**系统要求**:
+
+- 需要 AstrBot v4.0.0 或更高版本
+- Python 3.10+ 运行环境
 
 #### **v1.3.9** (2025-07-06)
 

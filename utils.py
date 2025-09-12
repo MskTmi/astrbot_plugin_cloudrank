@@ -336,8 +336,17 @@ def segment_text(
     if stop_words is None:
         stop_words = DEFAULT_STOPWORDS
 
-    # 预处理文本：移除@用户提及
+    # 预处理文本：移除@用户提及和指令相关文字
     import re
+
+    # 跳过指令和相关关键词
+    text_lower = text.lower()
+    if (text_lower.startswith(('#', '/')) or 
+        text_lower.startswith('wc') or 
+        text_lower.startswith('词云') or
+        '生成词云' in text_lower or
+        '/wordcloud' in text_lower):
+        return []
 
     # 移除@用户提及，支持多种格式：@username、@用户名、@123456等
     text = re.sub(r"@[^\s]+", "", text)
