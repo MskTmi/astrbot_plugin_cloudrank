@@ -13,20 +13,8 @@
 <div align="center">
   <a href="https://github.com/botuniverse/onebot-11"> <img src="https://img.shields.io/badge/OneBotv11-AIOCQHTTP-FF9800?style=for-the-badge&logo=qq&logoColor=white" alt="OneBot v11 Support"></a>
   <a href="https://github.com/WeChatPadPro/WeChatPadPro"> <img src="https://img.shields.io/badge/WeChat-PadPro-07C160?style=for-the-badge&logo=wechat&logoColor=white" alt="WeChatPadPro Support"></a>
-  <a href="https://github.com/GEMILUXVII/astrbot_plugin_cloudrank/commits/main"> <img src="https://img.shields.io/badge/updated-2025--05--30-0097A7?style=for-the-badge&logo=calendar&logoColor=white" alt="Last Updated"></a>
+  <a href="https://github.com/GEMILUXVII/astrbot_plugin_cloudrank/commits/main"> <img src="https://img.shields.io/badge/updated-2025--09--12-0097A7?style=for-the-badge&logo=calendar&logoColor=white" alt="Last Updated"></a>
 </div>
-
-## 👥 插件贡献者
-
-<div>
-  <a href="https://github.com/GEMILUXVII/astrbot_plugin_cloudrank/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=GEMILUXVII/astrbot_plugin_cloudrank" />
-  </a>
-</div>
-
-<br>
-
-![Alt](https://repobeats.axiom.co/api/embed/dd7cec6e773d144737f5b6ed13b9d1f4db4dbdcf.svg "Repobeats analytics image")
 
 ## 📝 介绍
 
