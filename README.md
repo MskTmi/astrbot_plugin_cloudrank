@@ -4,7 +4,7 @@
 
 <br>
 
-<div align="center">  <a href="#-更新日志"> <img src="https://img.shields.io/badge/version-v2.0.1-9644F4?style=for-the-badge" alt="Version"></a>
+<div align="center">  <a href="#更新日志"> <img src="https://img.shields.io/badge/version-v2.0.1-9644F4?style=for-the-badge" alt="Version"></a>
   <a href="https://github.com/GEMILUXVII/astrbot_plugin_cloudrank/blob/main/LICENSE"> <img src="https://img.shields.io/badge/license-AGPL--3.0-E53935?style=for-the-badge" alt="License"></a>
   <a href="https://www.python.org/downloads/"> <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python Version"></a>
   <a href="https://github.com/AstrBotDevs/AstrBot"> <img src="https://img.shields.io/badge/AstrBot-Compatible-00BFA5?style=for-the-badge&logo=robot&logoColor=white" alt="AstrBot Compatible"></a>
@@ -16,38 +16,36 @@
   <a href="https://github.com/GEMILUXVII/astrbot_plugin_cloudrank/commits/main"> <img src="https://img.shields.io/badge/updated-2025--09--13-0097A7?style=for-the-badge&logo=calendar&logoColor=white" alt="Last Updated"></a>
 </div>
 
-## 📝 介绍
+## 介绍
 
 CloudRank 插件是一款用于 AstrBot 的插件，能够将群聊或私聊中的文本消息进行分析，并生成美观的词云图像。通过词云，用户可以直观地了解一段时间内聊天内容的关键词和热点话题。插件同时提供用户活跃度排名功能，展示群内最活跃的成员。插件支持自动定时生成和手动触发生成，并提供了丰富的配置选项，让您可以定制个性化的词云和排名显示。
 
-插件完全适配 AstrBot v4.0.0 及以上版本，使用现代异步 SQLAlchemy ORM 进行数据库操作，确保了数据访问的高效性和可靠性。所有数据库操作都通过 AstrBot 提供的中心化数据库管理系统进行，无需额外的数据库配置
+现已完全适配 AstrBot 版本 v4.0.0及以上，经本地测试验证，各项功能运行正常。插件使用现代异步 SQLAlchemy ORM 进行数据库操作，确保了数据访问的高效性和可靠性。所有数据库操作都通过 AstrBot 提供的中心化数据库管理系统进行，无需额外的数据库配置。
 
-## ✨ 功能特性
+## 功能特性
 
-- 🕒 **定时自动生成**：支持 Cron 表达式配置，定时为指定群聊或所有启用的会话生成词云
-- 📅 **每日词云**：可在每日固定时间生成当天的聊天词云并推送到指定群聊，可自定义标题
-- ⌨️ **手动触发生成**：用户可以通过命令手动生成指定天数内的聊天词云
-- 🖼️ **多种视觉定制**：
+- **定时自动生成**：支持 Cron 表达式配置，定时为指定群聊或所有启用的会话生成词云
+- **每日词云**：可在每日固定时间生成当天的聊天词云并推送到指定群聊，可自定义标题
+- **手动触发生成**：用户可以通过命令手动生成指定天数内的聊天词云
+- **多种视觉定制**：
   - **背景颜色**：自定义词云图片的背景色
   - **配色方案**：选择不同的预设配色方案，改变词语的颜色分布
   - **字体**：支持指定自定义字体文件，解决特殊字符显示问题或实现特定视觉风格
   - **形状**：支持预设形状（如圆形、矩形、菱形、三角形），更重要的是支持通过 **自定义蒙版图片 (`custom_mask_path`)** 来定义任意词云轮廓
-- ⚙️ **灵活的配置管理**：
+- **灵活的配置管理**：
   - **群聊启用/禁用**：可以指定哪些群聊启用词云功能
   - **词语过滤**：设置最小词长度、最大词数量
   - **停用词**：支持自定义停用词列表，过滤常见但无意义的词语
   - **机器人消息统计**：可配置是否将机器人自身发送的消息计入词云统计 (`include_bot_messages`)
-- 📊 **用户活跃度排行**：
+- **用户活跃度排行**：
   - 词云生成后自动显示群内活跃用户排行榜
   - 可自定义排行显示人数和奖牌样式
   - 显示用户名称和发言贡献度
-- 📜 **消息历史记录**：插件会自动记录消息用于分析，用户无需额外操作
-- 🚀 **易于使用**：提供简洁的命令进行交互
-- 🐛 **调试模式**：可选的详细日志输出，方便排查问题
+- **消息历史记录**：插件会自动记录消息用于分析，用户无需额外操作
+- **易于使用**：提供简洁的命令进行交互
+- **调试模式**：可选的详细日志输出，方便排查问题
 
-## 📱 支持平台
-
-### 系统要求
+## 系统要求
 
 - **AstrBot 版本**：v4.0.0 及以上
   - 使用新版异步 ORM 数据库系统
@@ -56,30 +54,30 @@ CloudRank 插件是一款用于 AstrBot 的插件，能够将群聊或私聊中�
   - 支持异步特性
   - 兼容新版 SQLAlchemy
 
-### 平台支持
+## 平台支持
 
 CloudRank 插件基于 AstrBot 平台开发：
 
 - **QQ**：支持 QQ 群聊的词云生成
 - **微信**：支持基于 WeChatPadPro 微信群聊的词云生成
 
-## 🚀 安装方法
+## 安装方法
 
-1.  **下载插件**:
-    - 通过 `git clone https://github.com/GEMILUXVII/astrbot_plugin_cloudrank.git` 克隆仓库到本地
-2.  **放置插件文件**:
-    - 解压下载的压缩包
-    - 将整个插件文件夹 ( `CloudRank`) 复制到 AstrBot 的插件目录: `AstrBot/data/plugins/`
-    - 最终路径应为 `AstrBot/data/plugins/cloudrank/`
-3.  **安装依赖**:
-    - 打开终端或命令行，进入插件目录: `cd AstrBot/data/plugins/cloudrank/`
-    - 安装所需的 Python 包: `pip install -r requirements.txt`
-4.  **重启 AstrBot**:
-    - 完全重启 AstrBot 以加载新插件
-5.  **配置插件**:
-    - 在 AstrBot 的插件管理界面找到 "CloudRank" 插件，进行相关配置
+1. **下载插件**:
+   - 通过 `git clone https://github.com/GEMILUXVII/astrbot_plugin_cloudrank.git` 克隆仓库到本地
+2. **放置插件文件**:
+   - 解压下载的压缩包
+   - 将整个插件文件夹 ( `CloudRank`) 复制到 AstrBot 的插件目录: `AstrBot/data/plugins/`
+   - 最终路径应为 `AstrBot/data/plugins/cloudrank/`
+3. **安装依赖**:
+   - 打开终端或命令行，进入插件目录: `cd AstrBot/data/plugins/cloudrank/`
+   - 安装所需的 Python 包: `pip install -r requirements.txt`
+4. **重启 AstrBot**:
+   - 完全重启 AstrBot 以加载新插件
+5. **配置插件**:
+   - 在 AstrBot 的插件管理界面找到 "CloudRank" 插件，进行相关配置
 
-## 🛠️ 配置说明
+## 配置说明
 
 插件的配置通过 `_conf_schema.json` 文件定义，您可以在 AstrBot 后台的插件配置页面进行修改。以下是主要的配置项及其说明：
 
@@ -261,7 +259,7 @@ CloudRank 插件基于 AstrBot 平台开发：
   </tr>
 </table>
 
-## 💻 使用命令
+## 使用命令
 
 以下是与词云插件交互的主要命令:
 
@@ -308,7 +306,7 @@ CloudRank 插件基于 AstrBot 平台开发：
   </tr>
 </table>
 
-## 🗣️ 自然语言关键词
+## 自然语言关键词
 
 除了上述命令外，您还可以使用以下自然语言关键词触发相应功能：
 
@@ -355,7 +353,7 @@ NATURAL_KEYWORDS = {
 
 您可以根据需要添加新的命令和关键词，或者为现有命令添加更多关键词。修改后重启机器人即可生效
 
-## 🖼️ 词云样例
+## 词云样例
 
 ![Image](https://i.imgur.com/GdOOd7y.png)
 
@@ -363,7 +361,7 @@ NATURAL_KEYWORDS = {
 >
 > <small> <i> 上图词云样例采用以下主要配置生成：`max_word_count`: 50, `min_word_length`: 2, `min_word_frequency`: 2, `min_font_size`: 8, `max_font_size`: 170, `background_color`: pink, `colormap`: magma, `font_path`: (使用内置霞鹜文楷), `shape`: circle.</i> </small>
 
-## 📁 项目结构 (简化)
+## 项目结构 (简化)
 
 ```
 cloudrank/
@@ -396,32 +394,55 @@ AstrBot/data/plugin_data/cloudrank/
 └── debug/                    # 调试信息目录（仅在排查问题时使用）
 ```
 
-## ⚙️ 高级说明与定制
+## 高级说明与定制
 
-- **自定义停用词**: 编辑位于数据目录的 `resources/stop_words.txt` 文件，每行添加一个不想出现在词云中的词
-- **自定义字体**: 将字体文件 (如 `.ttf`, `.otf`) 放入数据目录 `resources/fonts/` 下，然后在插件配置中将 `font_path` 设置为该字体文件的名称 (例如 `my_font.ttf`)。如果字体在系统其他位置，可以设置绝对路径
-- **自定义词云形状 (使用蒙版图片)**:
-  1.  **准备蒙版图片**:
-      - 创建一个图像文件 (推荐使用 `.png` 格式，背景透明更佳，但 `.jpg` 等常见格式也可以)
-      - 在图片中，**您希望词语出现的区域应该是深色（如黑色）**，而 **希望留空的背景区域应该是浅色（如白色）**。词云生成器会将图片中接近纯黑色的部分作为词语填充的有效区域，纯白色部分则会忽略
-      - 图片尺寸会影响最终词云的分辨率和细节，但插件会尝试适应。一个几百像素到一千像素宽高的图片通常效果不错
-  2.  **放置蒙版图片**:
-      - 将您的蒙版图片文件（例如 `my_mask.png`）放置到插件的数据目录下的 `resources/images/` 子目录中，这个目录的完整路径通常是 `AstrBot/data/plugin_data/cloudrank/resources/images/`，如果该 `images` 子目录不存在，插件在启动时会自动创建它
-  3.  **配置插件**:
-      - 在 AstrBot 的插件管理界面，找到 "CloudRank" 插件的配置
-      - 在 **"自定义蒙版图片路径 (`custom_mask_path`)"** 配置项中，填入您放置的图片文件名，例如 `my_mask.png`
-      - **注意**: 如果您在这里配置了有效的图片路径，那么预设的 "词云的预设形状 (`shape`)" 配置项将会被忽略
-  4.  **重新加载/测试**:
-      - 保存配置后，建议重新加载插件或重启 AstrBot (如果插件管理界面支持热重载，则可能无需重启)
-      - 然后尝试生成一个词云 (例如使用 `/wc test` 命令) 来查看自定义形状的效果
-- **自定义时区**:
-  - 插件允许您配置运行时使用的时区，这对于确保定时任务（如每日词云生成、CRON 表达式定义的任务）按照您期望的本地时间执行至关重要
-  - **配置方法**: 在 AstrBot 的插件管理界面，找到 "CloudRank" 插件的配置中的 **"自定义插件使用的时区 (IANA 时区名称) (`timezone`)"** 选项
-  - **有效值**: 您需要输入一个有效的 IANA 时区名称，例如 `Asia/Shanghai` (默认值), `Europe/London`, `America/New_York`, 或者 `UTC`
-  - 您可以参考 [维基百科的时区列表](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) 或通过 Python 的 `pytz.all_timezones` (如果您熟悉 Python 环境) 来查找合适的时区名称
-  - **影响范围**: 此设置会影响所有与时间相关的调度，包括每日词云的生成时间和 CRON 任务的触发时间
+### 自定义停用词
 
-## ⚠️ 注意事项
+编辑位于数据目录的 `resources/stop_words.txt` 文件，每行添加一个不想出现在词云中的词。
+
+### 自定义字体
+
+将字体文件 (如 `.ttf`, `.otf`) 放入数据目录 `resources/fonts/` 下，然后在插件配置中将 `font_path` 设置为该字体文件的名称 (例如 `my_font.ttf`)。如果字体在系统其他位置，可以设置绝对路径。
+
+### 自定义词云形状 (使用蒙版图片)
+
+1. **准备蒙版图片**
+
+   - 创建一个图像文件 (推荐使用 `.png` 格式，背景透明更佳，但 `.jpg` 等常见格式也可以)
+   - 在图片中，**您希望词语出现的区域应该是深色（如黑色）**，而 **希望留空的背景区域应该是浅色（如白色）**
+   - 词云生成器会将图片中接近纯黑色的部分作为词语填充的有效区域，纯白色部分则会忽略
+   - 图片尺寸会影响最终词云的分辨率和细节，但插件会尝试适应。一个几百像素到一千像素宽高的图片通常效果不错
+
+2. **放置蒙版图片**
+
+   - 将您的蒙版图片文件（例如 `my_mask.png`）放置到插件的数据目录下的 `resources/images/` 子目录中
+   - 完整路径通常是 `AstrBot/data/plugin_data/cloudrank/resources/images/`
+   - 如果该 `images` 子目录不存在，插件在启动时会自动创建它
+
+3. **配置插件**
+
+   - 在 AstrBot 的插件管理界面，找到 "CloudRank" 插件的配置
+   - 在 **"自定义蒙版图片路径 (`custom_mask_path`)"** 配置项中，填入您放置的图片文件名，例如 `my_mask.png`
+   - **注意**: 如果您在这里配置了有效的图片路径，那么预设的 "词云的预设形状 (`shape`)" 配置项将会被忽略
+
+4. **重新加载/测试**
+   - 保存配置后，建议重新加载插件或重启 AstrBot (如果插件管理界面支持热重载，则可能无需重启)
+   - 然后尝试生成一个词云 (例如使用 `/wc test` 命令) 来查看自定义形状的效果
+
+### 自定义时区
+
+插件允许您配置运行时使用的时区，这对于确保定时任务（如每日词云生成、CRON 表达式定义的任务）按照您期望的本地时间执行至关重要。
+
+- **配置方法**: 在 AstrBot 的插件管理界面，找到 "CloudRank" 插件的配置中的 **"自定义插件使用的时区 (IANA 时区名称) (`timezone`)"** 选项
+- **有效值**: 您需要输入一个有效的 IANA 时区名称，例如：
+  - `Asia/Shanghai` (默认值)
+  - `Europe/London`
+  - `America/New_York`
+  - `UTC`
+- **参考资源**: 您可以参考 [维基百科的时区列表](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones) 或通过 Python 的 `pytz.all_timezones` (如果您熟悉 Python 环境) 来查找合适的时区名称
+- **影响范围**: 此设置会影响所有与时间相关的调度，包括每日词云的生成时间和 CRON 任务的触发时间
+
+## 注意事项
 
 - **首次使用**: 首次生成词云或插件加载时，可能需要一些时间来初始化分词库 (如 `jieba`) 和其他资源
 - **中文字体**: 为确保中文在词云中正确显示，建议在配置中明确指定一个包含中文字符的字体路径 (`font_path`)。插件会尝试使用内置的霞鹜文楷字体，如果加载失败或需要特定字体，则此配置项非常重要
@@ -435,7 +456,7 @@ AstrBot/data/plugin_data/cloudrank/
 - **性能考虑**: 记录和分析大量聊天数据可能会消耗一定的系统资源，对于非常活跃的机器人或服务器资源有限的情况，请适当调整历史记录天数和词云生成频率
 - **依赖冲突**: 确保 `requirements.txt` 中列出的依赖版本与您的 Python 环境和其他 AstrBot 插件兼容
 
-## ❓ 问题排查 (FAQ)
+## 问题排查 (FAQ)
 
 - **词云不显示中文/中文显示为方框**:
   - **原因**: 未找到合适的中文字体或配置的字体不包含所需字符
@@ -454,7 +475,7 @@ AstrBot/data/plugin_data/cloudrank/
   - **原因**: 关键词未正确配置、关键词大小写或空格不匹配、或消息被识别为命令
   - **解决**: 确保消息格式完全匹配 `constant.py` 中定义的关键词，包括空格和标点符号，确保消息不以 `/` 开头，否则会被视为命令而非普通消息
 
-## 🔄 更新日志
+## 更新日志
 
 #### **v2.0.1** (2025-09-13)
 
@@ -640,11 +661,11 @@ AstrBot/data/plugin_data/cloudrank/
 
 - 发布基础词云生成功能，支持多种视觉定制和配置管理
 
-## 📄 许可证
+## 许可证
 
 本插件采用 [GNU Affero General Public License v3.0 (AGPL-3.0)](https://www.gnu.org/licenses/agpl-3.0.html) 许可证
 
-## 🙏 致谢
+## 致谢
 
 本项目基于或参考了以下开源项目:
 
