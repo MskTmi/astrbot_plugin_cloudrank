@@ -4,7 +4,7 @@
 
 <br>
 
-<div align="center">  <a href="#-更新日志"> <img src="https://img.shields.io/badge/version-v2.0.0-9644F4?style=for-the-badge" alt="Version"></a>
+<div align="center">  <a href="#-更新日志"> <img src="https://img.shields.io/badge/version-v2.0.1-9644F4?style=for-the-badge" alt="Version"></a>
   <a href="https://github.com/GEMILUXVII/astrbot_plugin_cloudrank/blob/main/LICENSE"> <img src="https://img.shields.io/badge/license-AGPL--3.0-E53935?style=for-the-badge" alt="License"></a>
   <a href="https://www.python.org/downloads/"> <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python Version"></a>
   <a href="https://github.com/AstrBotDevs/AstrBot"> <img src="https://img.shields.io/badge/AstrBot-Compatible-00BFA5?style=for-the-badge&logo=robot&logoColor=white" alt="AstrBot Compatible"></a>
@@ -13,7 +13,7 @@
 <div align="center">
   <a href="https://github.com/botuniverse/onebot-11"> <img src="https://img.shields.io/badge/OneBotv11-AIOCQHTTP-FF9800?style=for-the-badge&logo=qq&logoColor=white" alt="OneBot v11 Support"></a>
   <a href="https://github.com/WeChatPadPro/WeChatPadPro"> <img src="https://img.shields.io/badge/WeChat-PadPro-07C160?style=for-the-badge&logo=wechat&logoColor=white" alt="WeChatPadPro Support"></a>
-  <a href="https://github.com/GEMILUXVII/astrbot_plugin_cloudrank/commits/main"> <img src="https://img.shields.io/badge/updated-2025--09--12-0097A7?style=for-the-badge&logo=calendar&logoColor=white" alt="Last Updated"></a>
+  <a href="https://github.com/GEMILUXVII/astrbot_plugin_cloudrank/commits/main"> <img src="https://img.shields.io/badge/updated-2025--09--13-0097A7?style=for-the-badge&logo=calendar&logoColor=white" alt="Last Updated"></a>
 </div>
 
 ## 📝 介绍
@@ -455,6 +455,15 @@ AstrBot/data/plugin_data/cloudrank/
   - **解决**: 确保消息格式完全匹配 `constant.py` 中定义的关键词，包括空格和标点符号，确保消息不以 `/` 开头，否则会被视为命令而非普通消息
 
 ## 🔄 更新日志
+
+#### **v2.0.1** (2025-09-13)
+
+**问题修复**:
+
+- 修复每日定时词云发送失败的问题
+  - 解决平台 ID 映射不正确导致的发送失败问题
+  - 修正 session_id 格式转换逻辑，确保与 AstrBot 统一消息来源格式匹配
+  - 更新定时任务中的消息发送机制，使用正确的 MessageEventResult API
 
 #### **v2.0.0** (2025-09-12)
 

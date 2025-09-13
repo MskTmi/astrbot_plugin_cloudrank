@@ -45,7 +45,7 @@ from . import constant as constant_module
     "CloudRank",
     "GEMILUXVII",
     "词云与排名插件 (CloudRank) 是一个文本可视化工具，能将聊天记录关键词以词云形式展现，并显示用户活跃度排行榜，支持定时或手动生成。",
-    "2.0.0",
+    "2.0.1",
     "https://github.com/GEMILUXVII/astrbot_plugin_cloudrank",
 )
 class WordCloudPlugin(Star):
@@ -688,7 +688,7 @@ class WordCloudPlugin(Star):
                         f"保存消息过程中发生异常: {save_error}, 错误类型: {type(save_error).__name__}"
                     )
                     logger.error(f"错误堆栈: {error_stack}")
-                except:
+                except Exception:
                     # 如果traceback也出错，使用简单日志
                     logger.error(
                         f"保存消息过程中发生异常: {save_error}, 无法获取详细堆栈"
@@ -744,8 +744,10 @@ class WordCloudPlugin(Star):
                 limit=max_messages_for_generation,
             )
             # 获取真实的消息总数
-            actual_total_messages = await self.history_manager.get_message_count_for_days(
-                session_id=target_session_id_for_query, days=actual_days
+            actual_total_messages = (
+                await self.history_manager.get_message_count_for_days(
+                    session_id=target_session_id_for_query, days=actual_days
+                )
             )
 
             if not texts:
@@ -967,8 +969,10 @@ class WordCloudPlugin(Star):
                 limit=max_messages_for_generation,
             )
             # 获取今天的真实消息总数
-            actual_total_messages_today = await self.history_manager.get_message_count_today(
-                target_session_id_for_query
+            actual_total_messages_today = (
+                await self.history_manager.get_message_count_today(
+                    target_session_id_for_query
+                )
             )
 
             if not texts:
@@ -1134,10 +1138,14 @@ class WordCloudPlugin(Star):
             if not self.enabled_groups:
                 try:
                     # 获取所有活跃群
-                    active_groups = await self.history_manager.get_active_group_sessions()
+                    active_groups = (
+                        await self.history_manager.get_active_group_sessions()
+                    )
                     for session_id in active_groups:
-                        active_group_id = self.history_manager.extract_group_id_from_session(
-                            session_id
+                        active_group_id = (
+                            self.history_manager.extract_group_id_from_session(
+                                session_id
+                            )
                         )
                         if active_group_id and active_group_id != group_id:
                             self.enabled_groups.add(active_group_id)
@@ -1289,7 +1297,7 @@ class WordCloudPlugin(Star):
         """
         生成每日词云定时任务
         """
-        logger.info("开始执行每日词云生成任务")
+        logger.info("开始每日词云生成任务")
 
         # 使用任务ID创建任务锁，防止并发执行
         task_id = "daily_wordcloud_task"
@@ -1420,69 +1428,83 @@ class WordCloudPlugin(Star):
                             logger.warning(f"为群 {group_id} 生成词云失败")
                             continue
 
-                        logger.info(f"成功为群 {group_id} 生成词云: {image_path_wc}")
+                        logger.debug(f"成功为群 {group_id} 生成词云: {image_path_wc}")
 
                         sendable_session_id = self._get_astrbot_sendable_session_id(
                             session_id
                         )
-                        
+
                         try:
-                            logger.info(f"准备发送词云到会话: {sendable_session_id}")
-                            logger.info(
+                            logger.debug(f"准备发送词云到会话: {sendable_session_id}")
+                            logger.debug(
                                 f"Attempting to send message to session_id: {sendable_session_id} (derived from group_id: {group_id})"
                             )
-                            
+
                             # 检查平台是否可用
                             platform_available = False
                             available_platforms = []
                             aiocqhttp_platform_id = None
-                            for platform in self.context.platform_manager.platform_insts:
+                            for (
+                                platform
+                            ) in self.context.platform_manager.platform_insts:
                                 platform_id = platform.meta().id
                                 platform_name = platform.meta().name
-                                available_platforms.append(f"{platform_id}({platform_name})")
+                                available_platforms.append(
+                                    f"{platform_id}({platform_name})"
+                                )
                                 if platform_name == "aiocqhttp":
                                     platform_available = True
                                     aiocqhttp_platform_id = platform_id
-                                    logger.info(f"Found aiocqhttp platform with ID: {platform_id}")
+                                    logger.debug(
+                                        f"Found aiocqhttp platform with ID: {platform_id}"
+                                    )
                                     break
-                            
-                            logger.info(f"Available platforms: {available_platforms}")
-                            
+
+                            logger.debug(f"Available platforms: {available_platforms}")
+
                             if not platform_available:
-                                logger.error("aiocqhttp platform not found or not available")
+                                logger.error(
+                                    "aiocqhttp platform not found or not available"
+                                )
                             else:
-                                logger.info(f"Using aiocqhttp platform ID: {aiocqhttp_platform_id}")
-                            
+                                logger.debug(
+                                    f"Using aiocqhttp platform ID: {aiocqhttp_platform_id}"
+                                )
+
                             # 使用 MessageEventResult 的正确方法发送消息
                             try:
                                 result = await self.context.send_message(
-                                    sendable_session_id, 
-                                    MessageEventResult().message(
-                                        f"【每日词云】{date_str_title}热词统计\n"
-                                    ).file_image(str(path_obj))
+                                    sendable_session_id,
+                                    MessageEventResult()
+                                    .message(f"【每日词云】{date_str_title}热词统计\n")
+                                    .file_image(str(path_obj)),
                                 )
-                                logger.info(f"Context.send_message returned: {result} (type: {type(result)})")
+                                logger.debug(
+                                    f"Context.send_message returned: {result} (type: {type(result)})"
+                                )
                             except Exception as send_exception:
-                                logger.error(f"Exception during send_message: {send_exception}")
-                                logger.error(f"Send exception traceback: {traceback.format_exc()}")
-                                result = False
-                                
-                            if result:
-                                logger.info(
-                                    f"Successfully sent daily wordcloud to session: {sendable_session_id}"
+                                logger.error(
+                                    f"Exception during send_message: {send_exception}"
                                 )
+                                logger.error(
+                                    f"Send exception traceback: {traceback.format_exc()}"
+                                )
+                                result = False
+
+                            if result:
+                                logger.info(f"每日词云发送成功: {sendable_session_id}")
 
                                 # --- BEGIN: Add user ranking logic ---
                                 show_ranking_config = self.config.get(
                                     "show_user_ranking", True
                                 )
-                                logger.info(
+                                logger.debug(
                                     f"[排行榜-每日] show_user_ranking配置: {show_ranking_config} for session {session_id}"
                                 )
 
                                 if show_ranking_config:
                                     try:  # Outer try for overall ranking generation and sending
-                                        logger.info(
+                                        logger.debug(
                                             f"[排行榜-每日] 开始为会话 {session_id} 生成用户排行榜"
                                         )
 
@@ -1513,10 +1535,10 @@ class WordCloudPlugin(Star):
                                             target_date_end_ts,
                                         )
 
-                                        logger.info(
+                                        logger.debug(
                                             f"[排行榜-每日] 会话 {session_id} 在 {date} 的总参与用户数: {total_users}"
                                         )
-                                        logger.info(
+                                        logger.debug(
                                             f"[排行榜-每日] 获取到活跃用户数量: {len(active_users) if active_users else 0}"
                                         )
 
@@ -1567,7 +1589,7 @@ class WordCloudPlugin(Star):
                                             )
                                             # sendable_ranking_session_id = self._get_astrbot_sendable_session_id(target_session_id_for_query) # Incorrect, target_session_id_for_query not in this scope
                                             # daily_generate_wordcloud already uses sendable_session_id derived earlier for the wordcloud image.
-                                            logger.info(
+                                            logger.debug(
                                                 f"[排行榜-每日] 准备发送排行榜到会话: {sendable_session_id}"
                                             )
                                             ranking_msg_chain = MessageChain(
@@ -1605,7 +1627,9 @@ class WordCloudPlugin(Star):
 
                 # 标记任务完成
                 task_completed = True
-                logger.info("成功完成每日词云生成任务")
+                logger.info(
+                    f"每日词云任务完成 - 处理了 {len(active_sessions)} 个活跃会话"
+                )
 
             except Exception as e:
                 logger.error(f"执行每日词云生成任务时出错: {e}")
@@ -1813,3 +1837,4 @@ class WordCloudPlugin(Star):
                     return True  # Indicate that a keyword was matched and attempt was made to process it
 
         return False  # No keyword matched
+
