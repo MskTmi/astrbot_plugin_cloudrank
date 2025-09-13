@@ -13,6 +13,7 @@ from astrbot.api import logger
 from astrbot.api import AstrBotConfig
 from astrbot.api.star import Star, Context, register, StarTools
 from astrbot.api.event import filter, AstrMessageEvent, MessageChain
+from astrbot.api.event import MessageEventResult
 from astrbot.api.event.filter import EventMessageType
 import astrbot.api.message_components as Comp
 
@@ -173,8 +174,21 @@ class WordCloudPlugin(Star):
             platform_name = parts[0]
             group_id_val = parts[1]
             if platform_name and group_id_val:
+                # 对于 aiocqhttp，使用实际的平台ID（可能是数字）
+                if platform_name == "aiocqhttp":
+                    # 从可用平台中查找实际的aiocqhttp平台ID
+                    actual_platform_id = None
+                    for platform in self.context.platform_manager.platform_insts:
+                        if platform.meta().name == "aiocqhttp":
+                            actual_platform_id = platform.meta().id
+                            break
+                    if actual_platform_id:
+                        return f"{actual_platform_id}:GroupMessage:{group_id_val}"
+                    else:
+                        # 如果找不到，先尝试原来的格式
+                        return f"{platform_name}:GroupMessage:{group_id_val}"
                 # 对微信平台不加0_
-                if platform_name.startswith("wechat"):
+                elif platform_name.startswith("wechat"):
                     return f"{platform_name}:GroupMessage:{group_id_val}"
                 else:
                     return f"{platform_name}:GroupMessage:0_{group_id_val}"
@@ -936,6 +950,9 @@ class WordCloudPlugin(Star):
 
             if self.debug_mode:
                 logger.info(f"今日词云生成请求: 会话ID={target_session_id_for_query}")
+                logger.info(f"Event platform_name: {platform_name}")
+                logger.info(f"Event unified_msg_origin: {event.unified_msg_origin}")
+                logger.info(f"Event platform_id: {event.get_platform_id()}")
 
             # 检查群聊是否启用
             if group_id_val and not is_group_enabled(group_id_val, self.enabled_groups):
@@ -1405,26 +1422,51 @@ class WordCloudPlugin(Star):
 
                         logger.info(f"成功为群 {group_id} 生成词云: {image_path_wc}")
 
-                        # 构建消息
-                        message_chain_wc = [  # Renamed
-                            Comp.Plain(f"【每日词云】{date_str_title}热词统计\n"),
-                            Comp.Image(file=str(path_obj)),
-                        ]
-
-                        # 发送消息到群
                         sendable_session_id = self._get_astrbot_sendable_session_id(
                             session_id
                         )
-                        logger.info(f"准备发送词云到会话: {sendable_session_id}")
-
-                        # 使用适当的API发送消息
+                        
                         try:
+                            logger.info(f"准备发送词云到会话: {sendable_session_id}")
                             logger.info(
                                 f"Attempting to send message to session_id: {sendable_session_id} (derived from group_id: {group_id})"
                             )
-                            result = await self.context.send_message(
-                                sendable_session_id, MessageChain(message_chain_wc)
-                            )
+                            
+                            # 检查平台是否可用
+                            platform_available = False
+                            available_platforms = []
+                            aiocqhttp_platform_id = None
+                            for platform in self.context.platform_manager.platform_insts:
+                                platform_id = platform.meta().id
+                                platform_name = platform.meta().name
+                                available_platforms.append(f"{platform_id}({platform_name})")
+                                if platform_name == "aiocqhttp":
+                                    platform_available = True
+                                    aiocqhttp_platform_id = platform_id
+                                    logger.info(f"Found aiocqhttp platform with ID: {platform_id}")
+                                    break
+                            
+                            logger.info(f"Available platforms: {available_platforms}")
+                            
+                            if not platform_available:
+                                logger.error("aiocqhttp platform not found or not available")
+                            else:
+                                logger.info(f"Using aiocqhttp platform ID: {aiocqhttp_platform_id}")
+                            
+                            # 使用 MessageEventResult 的正确方法发送消息
+                            try:
+                                result = await self.context.send_message(
+                                    sendable_session_id, 
+                                    MessageEventResult().message(
+                                        f"【每日词云】{date_str_title}热词统计\n"
+                                    ).file_image(str(path_obj))
+                                )
+                                logger.info(f"Context.send_message returned: {result} (type: {type(result)})")
+                            except Exception as send_exception:
+                                logger.error(f"Exception during send_message: {send_exception}")
+                                logger.error(f"Send exception traceback: {traceback.format_exc()}")
+                                result = False
+                                
                             if result:
                                 logger.info(
                                     f"Successfully sent daily wordcloud to session: {sendable_session_id}"
